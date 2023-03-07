@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package image_command;
+
+message Rotate{
+  int32 angle = 1;
+}
+
+message Resize{
+  uint32 w = 1;
+  uint32 h = 2;
+}
+
+message Operator{
+  oneof op{
+    Rotate rotate = 1;
+    Resize resize = 2;
+  }
+}
+
+message ImageCommand{
+  repeated Operator ops = 1;
+  string image_url = 2;
+}
