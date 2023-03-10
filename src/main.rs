@@ -11,6 +11,7 @@ use actix_web::dev::Payload;
 use anyhow::{anyhow, Context};
 use futures_core::{ready, Stream};
 use photon_rs::transform::SamplingFilter;
+use pin_project::pin_project;
 
 use crate::operator::Op;
 
@@ -111,6 +112,7 @@ impl<T> DerefMut for Proto<T> {
     }
 }
 
+#[pin_project(project = DecodeProtoProject)]
 enum DecodeProto<T> {
     Parse {
         payload: Payload,
@@ -120,8 +122,6 @@ enum DecodeProto<T> {
     JustError(Option<anyhow::Error>),
 }
 
-impl<T> Unpin for DecodeProto<T> {}
-
 impl<T> std::future::Future for DecodeProto<T>
     where
         T: prost::Message + Default,
@@ -129,10 +129,10 @@ impl<T> std::future::Future for DecodeProto<T>
     type Output = std::result::Result<Proto<T>, DecodeProtoError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        let me = self.get_mut();
-        match me {
-            DecodeProto::Parse { payload, buf, .. } => loop {
-                let res = ready!(Pin::new(&mut *payload).poll_next(cx));
+        match self.project() {
+            DecodeProtoProject::Parse { payload, buf, .. } => loop {
+                let res: Option<Result<bytes::Bytes, actix_web::error::PayloadError>>
+                    = ready!(Pin::new(&mut * payload).poll_next(cx));
                 match res {
                     Some(chunk) => {
                         let chunk = chunk?;
@@ -146,7 +146,7 @@ impl<T> std::future::Future for DecodeProto<T>
                     }
                 }
             },
-            DecodeProto::JustError(s) =>
+            DecodeProtoProject::JustError(s) =>
                 Poll::Ready(Err(DecodeProtoError(s.take().unwrap()))),
         }
     }

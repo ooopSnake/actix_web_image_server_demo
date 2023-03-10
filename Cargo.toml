@@ -14,6 +14,7 @@ mime = "0.3.16"
 photon-rs = "0.3.2"
 prost = "0.11.8"
 reqwest = "0.11.14"
+pin-project = "1"
 
 [build-dependencies]
 prost-build = "0.11.8"
